@@ -668,17 +668,29 @@ Opportunities: ${opps || "none"}`;
       const userMessage = question + contextInjection;
       history.push({ role: "user", content: userMessage });
 
+      const spinnerFrames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+      let spinnerIdx = 0;
+      let spinner: ReturnType<typeof setInterval> | null = null;
+
       try {
         await refreshTokenIfNeeded();
-        process.stdout.write("\nAssistant: ");
+
+        process.stdout.write("\nAssistant: thinking ");
+        spinner = setInterval(() => {
+          process.stdout.write(`\r\x1b[2KAssistant: thinking ${spinnerFrames[spinnerIdx++ % spinnerFrames.length]}`);
+        }, 80);
+
         // Trim to last MAX_HISTORY_TURNS exchanges (2 messages each) to prevent context overflow
         const trimmedHistory = history.slice(-(MAX_HISTORY_TURNS * 2));
         const result = await chat({
           messages: [{ role: "system", content: systemPrompt }, ...trimmedHistory],
           temperature: 0.3,
         });
+        if (spinner) clearInterval(spinner);
+        process.stdout.write(`\r\x1b[2K`);
+
         const { cleanReply, action } = parseAction(result.content);
-        console.log(cleanReply);
+        console.log("Assistant: " + cleanReply);
 
         // Execute CRM write-back if the LLM detected intent
         if (action) {
@@ -692,7 +704,9 @@ Opportunities: ${opps || "none"}`;
 
         history.push({ role: "assistant", content: cleanReply });
       } catch (err) {
-        console.error("LLM error:", err instanceof Error ? err.message : err);
+        if (spinner) clearInterval(spinner);
+        process.stdout.write(`\r\x1b[2K`);
+        console.error("Error:", err instanceof Error ? err.message : err);
       }
 
       ask();
