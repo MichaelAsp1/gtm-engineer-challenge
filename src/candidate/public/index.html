@@ -301,12 +301,10 @@
       const div = document.createElement('div');
       div.className = `message ${role}${isBriefing ? ' briefing' : ''}`;
 
-      if (!isBriefing) {
-        const label = document.createElement('div');
-        label.className = 'message-label';
-        label.textContent = role === 'user' ? 'You' : 'Assistant';
-        div.appendChild(label);
-      }
+      const label = document.createElement('div');
+      label.className = 'message-label';
+      label.textContent = isBriefing ? 'Morning Brief' : role === 'user' ? 'You' : 'Assistant';
+      div.appendChild(label);
 
       const body = document.createElement('div');
       body.className = 'message-body';
