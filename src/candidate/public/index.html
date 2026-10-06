@@ -100,7 +100,7 @@
       align-items: center;
     }
 
-    .message { display: flex; flex-direction: column; gap: 6px; max-width: 760px; width: 100%; }
+    .message { display: flex; flex-direction: column; gap: 8px; max-width: 700px; width: 100%; }
 
     .message-label {
       font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
@@ -121,20 +121,33 @@
     }
 
     /* markdown styling inside assistant messages */
-    .message-body p { margin-bottom: 0.6em; }
+    .message-body { font-size: 14px; line-height: 1.7; }
+    .message-body p { margin-bottom: 0.75em; }
     .message-body p:last-child { margin-bottom: 0; }
     .message-body strong { color: var(--text); font-weight: 600; }
-    .message-body ul, .message-body ol { padding-left: 1.4em; margin-bottom: 0.6em; }
-    .message-body li { margin-bottom: 0.25em; }
+    .message-body ul { padding-left: 1.3em; margin-bottom: 0.75em; }
+    .message-body ul li { margin-bottom: 0.45em; }
+    .message-body ol { padding-left: 1.3em; margin-bottom: 0.75em; list-style: none; counter-reset: ol-counter; }
+    .message-body ol li {
+      counter-increment: ol-counter; position: relative; padding-left: 1.6em;
+      margin-bottom: 1.4em; padding-bottom: 1.4em;
+      border-bottom: 1px solid var(--border);
+    }
+    .message-body ol li::before {
+      content: counter(ol-counter) ".";
+      position: absolute; left: 0; color: var(--text-muted);
+      font-weight: 600; font-size: 13px;
+    }
+    .message-body ol li:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
     .message-body code {
       font-family: var(--font-mono); font-size: 12px;
       background: var(--surface-2); padding: 1px 5px;
       border-radius: 3px; color: var(--text-dim);
     }
-    .message-body h1, .message-body h2, .message-body h3 {
-      font-size: 13.5px; font-weight: 600; color: var(--text);
-      margin-bottom: 0.4em; margin-top: 0.8em;
-    }
+    .message-body h1 { font-size: 16px; font-weight: 700; color: var(--text); margin: 1.4em 0 0.6em; }
+    .message-body h2 { font-size: 14px; font-weight: 700; color: var(--text); margin: 1.4em 0 0.5em; letter-spacing: 0.01em; }
+    .message-body h3 { font-size: 13px; font-weight: 600; color: var(--text-dim); margin: 1em 0 0.4em; text-transform: uppercase; letter-spacing: 0.06em; }
+    .message-body h1:first-child, .message-body h2:first-child, .message-body h3:first-child { margin-top: 0; }
 
     .action-result {
       font-size: 12px; color: var(--green); margin-top: 6px;
@@ -156,7 +169,7 @@
       border: 1px solid var(--border);
       border-left: 2px solid var(--border-2);
       border-radius: 4px;
-      padding: 16px 20px;
+      padding: 20px 24px;
     }
 
     /* ── Thinking indicator ── */
