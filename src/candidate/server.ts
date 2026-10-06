@@ -24,8 +24,9 @@ let startupError: string | null = null;
 // Boot in background so the server starts accepting connections immediately
 (async () => {
   try {
-    console.log("Starting up — loading accounts and computing signals...");
+    console.log("Starting up...");
     state = await initApp();
+    console.log(`✓ Loaded ${state.accountCount} accounts, computed signals, fetched sentiment`);
 
     // Run opening briefing and seed history
     await refreshTokenIfNeeded();
@@ -43,7 +44,7 @@ let startupError: string | null = null;
     );
 
     ready = true;
-    console.log(`✓ Ready. ${state.highPriorityCount} accounts flagged. Open http://localhost:${PORT}`);
+    console.log(`✓ Morning briefing ready. Open http://localhost:${PORT}`);
   } catch (err) {
     startupError = err instanceof Error ? err.message : String(err);
     console.error("Startup failed:", startupError);

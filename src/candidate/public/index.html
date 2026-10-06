@@ -239,6 +239,7 @@
   <div id="loading">
     <div class="spinner"></div>
     <p id="loading-text">Loading accounts and computing signals...</p>
+    <p id="loading-sub" style="font-size:11px;color:#444;margin-top:4px;">This takes 1-2 minutes on first load</p>
   </div>
 
   <div id="app">
@@ -347,6 +348,18 @@
     }
 
     // ── Poll until ready ─────────────────────────────────────────────────
+    const loadingSteps = [
+      [0,   'Loading 200 accounts from CRM...'],
+      [8000, 'Computing analytics signals...'],
+      [20000,'Fetching activity sentiment for top accounts...'],
+      [40000,'Generating morning briefing...'],
+    ];
+    loadingSteps.forEach(([delay, msg]) => {
+      setTimeout(() => {
+        if (!loadingEl.classList.contains('hidden')) loadingText.textContent = msg;
+      }, delay);
+    });
+
     async function waitForReady() {
       while (true) {
         try {
