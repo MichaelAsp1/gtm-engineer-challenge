@@ -7,6 +7,8 @@
 npm install
 ```
 
+> **Note:** The SQLite databases (`data/analytics/analytics.sqlite` and `data/crm/crm.sqlite`) are not included in this repo — they exceed GitHub's file size limit. They are provided with the original challenge zip. Place them in the `data/` directory at the repo root before running.
+
 **Step 2 - set up credentials:**
 ```bash
 cp .env.example .env.local
