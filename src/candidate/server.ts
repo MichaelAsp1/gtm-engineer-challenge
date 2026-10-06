@@ -5,11 +5,10 @@ import { fileURLToPath } from "node:url";
 import { resolve, dirname } from "node:path";
 import {
   initApp,
-  handleMessage,
+  handleMessageStream,
   refreshTokenIfNeeded,
   BRIEFING_PROMPT,
   type AppState,
-  type ScoredAccount,
 } from "./core.js";
 
 const PORT = Number(process.env.WEB_PORT ?? 3002);
@@ -100,17 +99,36 @@ app.post("/api/chat", async (c) => {
   const body = await c.req.json<{ message: string }>();
   if (!body?.message?.trim()) return c.json({ error: "Empty message" }, 400);
 
-  try {
-    const { reply, actionResult } = await handleMessage(
-      body.message,
-      state.scored,
-      state.systemPrompt,
-      state.history
-    );
-    return c.json({ reply, actionResult: actionResult ?? null });
-  } catch (err) {
-    return c.json({ error: err instanceof Error ? err.message : "LLM error" }, 500);
-  }
+  const enc = new TextEncoder();
+  const snap = state; // capture so TS knows it's non-null in async scope
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      const send = (data: object) =>
+        controller.enqueue(enc.encode(`data: ${JSON.stringify(data)}\n\n`));
+      try {
+        const { cleanReply, actionResult } = await handleMessageStream(
+          body.message,
+          snap.scored,
+          snap.systemPrompt,
+          snap.history,
+          (token) => send({ token })
+        );
+        send({ done: true, cleanReply, actionResult: actionResult ?? null });
+      } catch (err) {
+        send({ error: err instanceof Error ? err.message : "LLM error" });
+      }
+      controller.close();
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      "Connection": "keep-alive",
+    },
+  });
 });
 
 serve({ fetch: app.fetch, port: PORT });

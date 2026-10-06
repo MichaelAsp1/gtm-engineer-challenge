@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { chat } from "../../lib/corti.js";
+import { chat, getBaseUrl, getDefaultModel } from "../../lib/corti.js";
 import type { ChatMessage } from "../../lib/corti.js";
 
 // ─── Config ────────────────────────────────────────────────────────────────
@@ -508,12 +508,7 @@ export async function executeAction(action: CrmAction): Promise<string> {
 
 // ─── Shared Message Handler ────────────────────────────────────────────────
 
-export async function handleMessage(
-  question: string,
-  scored: ScoredAccount[],
-  systemPrompt: string,
-  history: ChatMessage[]
-): Promise<{ reply: string; actionResult?: string }> {
+async function buildUserMessage(question: string, scored: ScoredAccount[]): Promise<string> {
   const mentionedAccount = scored.find((sa) => {
     const q = question.toLowerCase();
     return (
@@ -521,34 +516,95 @@ export async function handleMessage(
       (sa.account.domain && q.includes(sa.account.domain.replace(".example", "").toLowerCase()))
     );
   });
+  if (!mentionedAccount) return question;
+  try {
+    const detail = await loadAccountDetail(mentionedAccount.account.id);
+    const contactSummary = detail.contacts
+      .map((c) => `${c.name} (${c.title ?? "unknown title"}, ${c.persona ?? "unknown persona"})`)
+      .join(", ");
+    const recentActivities = detail.activities.slice(0, 5)
+      .map((a) => {
+        const d = a.timestamp.split("T")[0];
+        if (a.type === "meeting") return `${d}: Meeting — outcome: ${a.outcome ?? "unknown"}`;
+        if (a.type === "email") return `${d}: Email (${a.direction}) — ${a.subject ?? "no subject"}`;
+        if (a.type === "stage_change") return `${d}: Stage change → ${a.to ?? "?"}`;
+        if (a.type === "note") return `${d}: Note — ${a.text?.slice(0, 80) ?? ""}`;
+        return `${d}: ${a.type}`;
+      })
+      .join("\n");
+    const opps = detail.opportunities
+      .map((o) => `${o.name} [${o.stage}] $${o.value?.toLocaleString() ?? "?"} — close ${o.closeDate ?? "?"}`)
+      .join(", ");
+    return question + `\n\n[ACCOUNT DETAIL: ${mentionedAccount.account.name} id:${mentionedAccount.account.id}]\nContacts: ${contactSummary || "none found"}\nRecent activities:\n${recentActivities || "none"}\nOpportunities: ${opps || "none"}`;
+  } catch {
+    return question;
+  }
+}
 
-  let contextInjection = "";
-  if (mentionedAccount) {
-    try {
-      const detail = await loadAccountDetail(mentionedAccount.account.id);
-      const contactSummary = detail.contacts
-        .map((c) => `${c.name} (${c.title ?? "unknown title"}, ${c.persona ?? "unknown persona"})`)
-        .join(", ");
-      const recentActivities = detail.activities.slice(0, 5)
-        .map((a) => {
-          const d = a.timestamp.split("T")[0];
-          if (a.type === "meeting") return `${d}: Meeting — outcome: ${a.outcome ?? "unknown"}`;
-          if (a.type === "email") return `${d}: Email (${a.direction}) — ${a.subject ?? "no subject"}`;
-          if (a.type === "stage_change") return `${d}: Stage change → ${a.to ?? "?"}`;
-          if (a.type === "note") return `${d}: Note — ${a.text?.slice(0, 80) ?? ""}`;
-          return `${d}: ${a.type}`;
-        })
-        .join("\n");
-      const opps = detail.opportunities
-        .map((o) => `${o.name} [${o.stage}] $${o.value?.toLocaleString() ?? "?"} — close ${o.closeDate ?? "?"}`)
-        .join(", ");
-      contextInjection = `\n\n[ACCOUNT DETAIL: ${mentionedAccount.account.name} id:${mentionedAccount.account.id}]\nContacts: ${contactSummary || "none found"}\nRecent activities:\n${recentActivities || "none"}\nOpportunities: ${opps || "none"}`;
-    } catch {
-      // detail fetch failed — proceed without context
+async function* chatStream(messages: ChatMessage[], temperature: number): AsyncGenerator<string> {
+  await refreshTokenIfNeeded();
+  const key = process.env.CORTI_API_KEY;
+  if (!key) throw new Error("CORTI_API_KEY not set");
+  const res = await fetch(`${getBaseUrl()}/chat/completions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
+    body: JSON.stringify({ model: getDefaultModel(), messages, temperature, stream: true }),
+  });
+  if (!res.ok || !res.body) throw new Error(`Stream failed: HTTP ${res.status}`);
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+    for (const line of lines) {
+      if (!line.startsWith("data: ")) continue;
+      const data = line.slice(6).trim();
+      if (data === "[DONE]") return;
+      try {
+        const token = (JSON.parse(data) as { choices?: Array<{ delta?: { content?: string } }> })
+          .choices?.[0]?.delta?.content;
+        if (token) yield token;
+      } catch { /* skip malformed chunk */ }
     }
   }
+}
 
-  const userMessage = question + contextInjection;
+export async function handleMessageStream(
+  question: string,
+  scored: ScoredAccount[],
+  systemPrompt: string,
+  history: ChatMessage[],
+  onToken: (token: string) => void
+): Promise<{ cleanReply: string; actionResult?: string }> {
+  const userMessage = await buildUserMessage(question, scored);
+  history.push({ role: "user", content: userMessage });
+  const trimmedHistory = history.slice(-(MAX_HISTORY_TURNS * 2));
+  let fullReply = "";
+  for await (const token of chatStream(
+    [{ role: "system", content: systemPrompt }, ...trimmedHistory],
+    0.3
+  )) {
+    onToken(token);
+    fullReply += token;
+  }
+  const { cleanReply, action } = parseAction(fullReply);
+  let actionResult: string | undefined;
+  if (action) actionResult = await executeAction(action);
+  history.push({ role: "assistant", content: cleanReply });
+  return { cleanReply, actionResult };
+}
+
+export async function handleMessage(
+  question: string,
+  scored: ScoredAccount[],
+  systemPrompt: string,
+  history: ChatMessage[]
+): Promise<{ reply: string; actionResult?: string }> {
+  const userMessage = await buildUserMessage(question, scored);
   history.push({ role: "user", content: userMessage });
 
   await refreshTokenIfNeeded();

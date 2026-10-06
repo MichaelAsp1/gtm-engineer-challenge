@@ -172,15 +172,15 @@
       padding: 20px 24px;
     }
 
-    /* ── Thinking indicator ── */
-    .thinking .message-body { display: flex; align-items: center; gap: 4px; padding: 4px 0; }
-    .thinking .message-body span {
+    /* ── Dot pulse (while waiting for first token) ── */
+    .dot-pulse { display: inline-flex; align-items: center; gap: 4px; padding: 4px 0; }
+    .dot-pulse span {
       display: inline-block; width: 5px; height: 5px;
       border-radius: 50%; background: var(--text-muted);
       animation: dot-fade 1.2s ease-in-out infinite;
     }
-    .thinking .message-body span:nth-child(2) { animation-delay: 0.2s; }
-    .thinking .message-body span:nth-child(3) { animation-delay: 0.4s; }
+    .dot-pulse span:nth-child(2) { animation-delay: 0.2s; }
+    .dot-pulse span:nth-child(3) { animation-delay: 0.4s; }
     @keyframes dot-fade { 0%,80%,100%{opacity:0.15} 40%{opacity:1} }
 
     /* ── Input ── */
@@ -414,7 +414,24 @@
       sendBtn.disabled = true;
 
       appendMessage('user', text);
-      const thinking = appendThinking();
+
+      // Create assistant message div immediately — tokens fill it in
+      const msgDiv = document.createElement('div');
+      msgDiv.className = 'message assistant';
+      const label = document.createElement('div');
+      label.className = 'message-label';
+      label.textContent = 'Assistant';
+      const body = document.createElement('div');
+      body.className = 'message-body';
+      // Show dots until first token arrives
+      body.innerHTML = '<span class="dot-pulse"><span></span><span></span><span></span></span>';
+      msgDiv.appendChild(label);
+      msgDiv.appendChild(body);
+      messages.appendChild(msgDiv);
+      messages.scrollTop = messages.scrollHeight;
+
+      let fullText = '';
+      let firstToken = true;
 
       try {
         const res = await fetch('/api/chat', {
@@ -422,16 +439,43 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ message: text }),
         });
-        const data = await res.json();
-        thinking.remove();
-        if (data.error) {
-          appendMessage('assistant', 'Error: ' + data.error);
-        } else {
-          appendMessage('assistant', data.reply, data.actionResult);
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const parts = buffer.split('\n\n');
+          buffer = parts.pop() ?? '';
+          for (const part of parts) {
+            if (!part.startsWith('data: ')) continue;
+            let data;
+            try { data = JSON.parse(part.slice(6)); } catch { continue; }
+
+            if (data.token) {
+              if (firstToken) { body.innerHTML = ''; firstToken = false; }
+              fullText += data.token;
+              body.innerHTML = marked.parse(cleanText(fullText));
+              messages.scrollTop = messages.scrollHeight;
+            } else if (data.done) {
+              // Replace with clean reply (action block stripped)
+              body.innerHTML = marked.parse(cleanText(data.cleanReply || fullText));
+              if (data.actionResult) {
+                const ar = document.createElement('div');
+                ar.className = 'action-result';
+                ar.textContent = '✓ ' + data.actionResult;
+                msgDiv.appendChild(ar);
+              }
+            } else if (data.error) {
+              body.textContent = 'Error: ' + data.error;
+            }
+          }
         }
       } catch (e) {
-        thinking.remove();
-        appendMessage('assistant', 'Request failed: ' + e.message);
+        body.textContent = 'Request failed: ' + e.message;
       } finally {
         sendBtn.disabled = false;
         input.focus();
