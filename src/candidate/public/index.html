@@ -97,9 +97,10 @@
     #messages {
       flex: 1; overflow-y: auto; padding: 24px 32px;
       display: flex; flex-direction: column; gap: 24px;
+      align-items: center;
     }
 
-    .message { display: flex; flex-direction: column; gap: 6px; max-width: 760px; }
+    .message { display: flex; flex-direction: column; gap: 6px; max-width: 760px; width: 100%; }
 
     .message-label {
       font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
@@ -140,6 +141,24 @@
       font-family: var(--font-mono);
     }
 
+    /* ── Briefing card ── */
+    .message.briefing .message-label {
+      color: var(--text-muted);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .message.briefing .message-label::before {
+      content: '';
+      display: inline-block; width: 6px; height: 6px;
+      border-radius: 50%; background: var(--green); flex-shrink: 0;
+    }
+    .message.briefing .message-body {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 2px solid var(--border-2);
+      border-radius: 4px;
+      padding: 16px 20px;
+    }
+
     /* ── Thinking indicator ── */
     .thinking .message-body { color: var(--text-muted); font-style: italic; }
     @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
@@ -152,7 +171,7 @@
       padding: 16px 32px;
       border-top: 1px solid var(--border);
       background: var(--bg);
-      display: flex; gap: 10px; align-items: flex-end;
+      display: flex; justify-content: center;
     }
     #input-area form { display: flex; gap: 10px; width: 100%; max-width: 760px; }
 
@@ -249,6 +268,10 @@
     // ── Markdown ──────────────────────────────────────────────────────────
     marked.setOptions({ breaks: true });
 
+    function cleanText(text) {
+      return text.replaceAll('—', ' -').replaceAll('–', '-');
+    }
+
     // ── Auto-resize textarea ──────────────────────────────────────────────
     input.addEventListener('input', () => {
       input.style.height = 'auto';
@@ -256,19 +279,19 @@
     });
 
     // ── Append a message ─────────────────────────────────────────────────
-    function appendMessage(role, text, actionResult) {
+    function appendMessage(role, text, actionResult, isBriefing = false) {
       const div = document.createElement('div');
-      div.className = `message ${role}`;
+      div.className = `message ${role}${isBriefing ? ' briefing' : ''}`;
 
       const label = document.createElement('div');
       label.className = 'message-label';
-      label.textContent = role === 'user' ? 'You' : 'Assistant';
+      label.textContent = isBriefing ? 'Daily Brief' : role === 'user' ? 'You' : 'Assistant';
 
       const body = document.createElement('div');
       body.className = 'message-body';
 
       if (role === 'assistant') {
-        body.innerHTML = marked.parse(text);
+        body.innerHTML = marked.parse(cleanText(text));
       } else {
         body.textContent = text;
       }
@@ -332,10 +355,11 @@
         card.title = `Click to ask about ${acc.name}`;
 
         const scoreClass = acc.score >= 60 ? 'score-crit' : acc.score >= 40 ? 'score-high' : 'score-med';
+        const trendIcon = { growing: '<span style="color:var(--green)">↑</span>', declining: '<span style="color:var(--red)">↓</span>', dark: '<span style="color:var(--text-muted)">●</span>', new: '<span style="color:var(--blue)">★</span>' }[acc.trend] ?? '';
 
         card.innerHTML = `
           <div class="account-row">
-            <span class="account-name">${acc.name}</span>
+            <span class="account-name">${trendIcon ? trendIcon + ' ' : ''}${acc.name}</span>
             <span class="account-score ${scoreClass}">${acc.score}</span>
           </div>
           ${acc.topSignal ? `<div class="account-signal">${acc.topSignal}</div>` : ''}
@@ -411,7 +435,7 @@
       const briefRes = await fetch('/api/briefing');
       const { briefing } = await briefRes.json();
       if (briefing) {
-        appendMessage('assistant', briefing);
+        appendMessage('assistant', briefing, null, true);
       }
 
       loadingEl.classList.add('hidden');
