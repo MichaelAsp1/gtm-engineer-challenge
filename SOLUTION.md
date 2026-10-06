@@ -7,7 +7,7 @@
 npm install
 ```
 
-> **Note:** The SQLite databases (`data/analytics/analytics.sqlite` and `data/crm/crm.sqlite`) are not included in this repo — they exceed GitHub's file size limit. They are provided with the original challenge zip. Place them in the `data/` directory at the repo root before running.
+> **Note:** The SQLite databases are not in the GitHub repo (they exceed the 100MB file size limit) but are included in the submitted zip. If running from the zip, they are already in place. If cloning from GitHub, copy `data/` from the original challenge zip into the repo root.
 
 **Step 2 - set up credentials:**
 ```bash
@@ -15,9 +15,7 @@ cp .env.example .env.local
 ```
 Fill in `.env.local`:
 ```
-CORTI_CLIENT_ID=<your client id>
-CORTI_CLIENT_SECRET=<your client secret>
-CORTI_BASE_URL=https://ai.eu.corti.app/v1
+CORTI_API_KEY=<your provided API key>
 ```
 
 **Step 3 - start the mock CRM (Terminal 1):**
