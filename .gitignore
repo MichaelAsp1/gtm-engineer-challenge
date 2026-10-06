@@ -1,0 +1,23 @@
+# Local environment secrets — never commit
+.env.local
+.env.*.local
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# SQLite transient files
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+
+# Node
+*.log
+npm-debug.log*
+
+# Editor
+.DS_Store
+.idea/
+.vscode/
