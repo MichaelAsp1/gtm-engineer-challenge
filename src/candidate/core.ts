@@ -213,10 +213,11 @@ export function computeAnalyticsSignal(db: Database.Database, domain: string | u
   );
 
   const usage7d = (eventQuery.get(customer.id, "request", d7, REF_DATE_STR) as { total: number }).total;
+  const d31 = daysBefore(REF_DATE, 31); // end of prev 30d window (day before current period)
   const usage30d = (eventQuery.get(customer.id, "request", d30, REF_DATE_STR) as { total: number }).total;
-  const usagePrev30d = (eventQuery.get(customer.id, "request", d60, daysBefore(REF_DATE, 1)) as { total: number }).total;
+  const usagePrev30d = (eventQuery.get(customer.id, "request", d60, d31) as { total: number }).total;
   const transcribe30d = (eventQuery.get(customer.id, "transcribe", d30, REF_DATE_STR) as { total: number }).total;
-  const transcribePrev30d = (eventQuery.get(customer.id, "transcribe", d60, daysBefore(REF_DATE, 1)) as { total: number }).total;
+  const transcribePrev30d = (eventQuery.get(customer.id, "transcribe", d60, d31) as { total: number }).total;
   const tokens30d = (eventQuery.get(customer.id, "tokens", d30, REF_DATE_STR) as { total: number }).total;
 
   const calcTrend = (current: number, prior: number): AnalyticsSignal["trend"] => {
