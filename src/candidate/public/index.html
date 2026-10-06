@@ -28,11 +28,11 @@
     html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--font-sans); font-size: 14px; line-height: 1.5; }
 
     /* ── Layout ── */
-    #app { display: grid; grid-template-rows: 44px 1fr; grid-template-columns: 260px 1fr; height: 100vh; }
+    #app { display: grid; grid-template-rows: 44px 1fr; grid-template-columns: 220px 1fr 220px; height: 100vh; }
 
     /* ── Header ── */
     header {
-      grid-column: 1 / -1;
+      grid-column: 1 / 4;
       display: flex; align-items: center; gap: 24px;
       padding: 0 20px;
       border-bottom: 1px solid var(--border);
@@ -51,11 +51,12 @@
 
     /* ── Sidebar ── */
     aside {
-      border-right: 1px solid var(--border);
       background: var(--surface);
       overflow-y: auto;
       display: flex; flex-direction: column;
     }
+    #sidebar-left  { border-right: 1px solid var(--border); }
+    #sidebar-right { border-left:  1px solid var(--border); }
     .sidebar-label {
       padding: 14px 16px 8px;
       font-size: 10px; font-weight: 600; letter-spacing: 0.1em;
@@ -254,11 +255,9 @@
       <div id="status-dot"></div>
     </header>
 
-    <aside>
+    <aside id="sidebar-left">
       <div class="sidebar-label">At Risk</div>
       <div id="account-list"></div>
-      <div class="sidebar-label" style="margin-top:8px;">Growing</div>
-      <div id="growing-list"></div>
     </aside>
 
     <div id="chat">
@@ -275,6 +274,11 @@
         </form>
       </div>
     </div>
+
+    <aside id="sidebar-right">
+      <div class="sidebar-label">Growing</div>
+      <div id="growing-list"></div>
+    </aside>
   </div>
 
   <script>
