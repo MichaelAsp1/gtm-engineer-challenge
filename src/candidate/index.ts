@@ -568,22 +568,24 @@ async function executeAction(action: CrmAction): Promise<string> {
 // ─── Main Chat Loop ────────────────────────────────────────────────────────
 
 export async function run(): Promise<void> {
-  console.log("Loading data…");
+  console.log("Starting up — this can take a minute or two while we load all accounts and compute signals.\n");
 
   await refreshTokenIfNeeded();
 
   const db = new Database(ANALYTICS_PATH, { readonly: true });
 
   let accounts: Account[];
+  process.stdout.write("Loading accounts from CRM...");
   try {
     accounts = await loadAllAccounts();
+    console.log(` done (${accounts.length} accounts)`);
   } catch (err) {
-    console.error("Cannot reach CRM API. Start it first with: npm run dev");
+    console.error("\nCannot reach CRM API. Start it first with: npm run dev");
     db.close();
     return;
   }
 
-  console.log(`Loaded ${accounts.length} accounts from CRM. Computing signals…`);
+  process.stdout.write("Computing analytics signals and activity sentiment...");
 
   const scored: ScoredAccount[] = accounts.map((account) => {
     const analytics = computeAnalyticsSignal(db, account.domain);
@@ -606,6 +608,7 @@ export async function run(): Promise<void> {
     sa.reasons.push(...sentimentScore.reasons);
   });
   scored.sort((a, b) => b.score - a.score);
+  console.log(" done");
 
   const systemPrompt = buildSystemPrompt(scored);
   const history: ChatMessage[] = [];
