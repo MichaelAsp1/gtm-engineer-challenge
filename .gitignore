@@ -21,3 +21,6 @@ npm-debug.log*
 .DS_Store
 .idea/
 .vscode/
+
+# SQLite databases (provided with challenge, too large for git)
+data/
