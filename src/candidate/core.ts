@@ -17,7 +17,7 @@ export const REF_DATE = new Date(REF_DATE_STR);
 export const MAX_HISTORY_TURNS = 10;
 
 export const BRIEFING_PROMPT =
-  "Give me my morning briefing. No preamble. Lead with the 3-5 accounts that need action today, each with one specific recommended action and the key reason why. Then one line on any expansion opportunity worth a call this week. Be direct and concrete — I have 30 minutes before standup.";
+  "Give me my morning briefing. No preamble, no date heading, no title. Go straight into the accounts. Lead with the 3-5 accounts that need action today, each with one specific recommended action and the key reason why. Then one line on any expansion opportunity worth a call this week. Be direct and concrete — I have 30 minutes before standup.";
 
 // ─── OAuth2 ────────────────────────────────────────────────────────────────
 
