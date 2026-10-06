@@ -63,10 +63,24 @@ app.get("/", (c) => {
 app.get("/api/status", (c) => {
   if (startupError) return c.json({ ready: false, error: startupError }, 503);
   if (!ready || !state) return c.json({ ready: false }, 200);
+
+  const atRiskPipeline = state.scored
+    .filter((sa) => sa.score >= 30 && sa.account.opportunityAmount)
+    .reduce((sum, sa) => sum + (sa.account.opportunityAmount ?? 0), 0);
+
+  const contractsExpiringSoon = state.scored.filter(
+    (sa) => sa.analytics && (
+      (sa.analytics.projectedDaysToZero !== null && sa.analytics.projectedDaysToZero <= 14) ||
+      (sa.analytics.daysToContractExpiry !== null && sa.analytics.daysToContractExpiry <= 14)
+    )
+  ).length;
+
   return c.json({
     ready: true,
     accountCount: state.accountCount,
     highPriorityCount: state.highPriorityCount,
+    atRiskPipeline,
+    contractsExpiringSoon,
   });
 });
 

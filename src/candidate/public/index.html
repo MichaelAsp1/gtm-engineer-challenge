@@ -28,7 +28,7 @@
     html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--font-sans); font-size: 14px; line-height: 1.5; }
 
     /* ── Layout ── */
-    #app { display: grid; grid-template-rows: 44px 1fr; grid-template-columns: 220px 1fr 220px; height: 100vh; }
+    #app { display: grid; grid-template-rows: 48px 1fr; grid-template-columns: 220px 1fr 220px; height: 100vh; }
 
     /* ── Header ── */
     header {
@@ -38,9 +38,9 @@
       border-bottom: 1px solid var(--border);
       background: var(--surface);
     }
-    .header-left { display: flex; align-items: center; gap: 24px; flex: 1; }
-    .header-center { display: flex; align-items: center; gap: 8px; }
-    .header-right { flex: 1; display: flex; align-items: center; justify-content: flex-end; }
+    .header-left { display: flex; align-items: center; gap: 24px; flex: 1; white-space: nowrap; flex-shrink: 0; }
+    .header-center { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .header-right { flex: 1; display: flex; align-items: center; justify-content: flex-end; white-space: nowrap; gap: 10px; padding-right: 8px; }
     header h1 { font-size: 13px; font-weight: 600; letter-spacing: 0.02em; color: var(--text); }
     header .sep { color: var(--border-2); }
     .stat { font-size: 12px; color: var(--text-muted); }
@@ -381,8 +381,12 @@
         <button id="btn-all-accounts">All accounts</button>
       </div>
       <div class="header-right">
-        <div id="status-dot" style="margin-right: 10px;"></div>
+        <span class="stat"><strong id="stat-pipeline" style="color:var(--orange)">—</strong> at risk</span>
+        <span class="sep" style="margin: 0 8px;">·</span>
+        <span class="stat"><strong id="stat-expiring" style="color:var(--red)">—</strong> expiring &lt;14d</span>
+        <span style="margin: 0 16px; color: var(--border);">|</span>
         <span class="stat">Ref: Mar 14, 2025</span>
+        <div id="status-dot" style="margin-left: 12px;"></div>
       </div>
     </header>
 
@@ -765,6 +769,17 @@
 
       $('#stat-accounts').textContent = status.accountCount;
       $('#stat-flagged').textContent = status.highPriorityCount;
+
+      if (status.atRiskPipeline) {
+        const v = status.atRiskPipeline;
+        $('#stat-pipeline').textContent = v >= 1_000_000
+          ? '$' + (v / 1_000_000).toFixed(1) + 'M'
+          : '$' + Math.round(v / 1000) + 'K';
+      }
+      if (status.contractsExpiringSoon !== undefined) {
+        $('#stat-expiring').textContent = status.contractsExpiringSoon;
+      }
+
       $('#status-dot').classList.add('ready');
 
       await loadAccounts();
