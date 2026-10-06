@@ -9,7 +9,8 @@
     "crm": "node --env-file-if-exists=.env.local --import tsx mock-crm/server.ts",
     "start": "npm run dev",
     "test": "node --env-file-if-exists=.env.local --import tsx --test tests/starter.test.ts",
-    "challenge": "node --env-file-if-exists=.env.local --import tsx src/candidate/index.ts"
+    "challenge": "node --env-file-if-exists=.env.local --import tsx src/candidate/index.ts",
+    "web": "node --env-file-if-exists=.env.local --import tsx src/candidate/server.ts"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.7",

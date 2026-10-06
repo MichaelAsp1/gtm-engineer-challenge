@@ -1,0 +1,116 @@
+import { Hono } from "hono";
+import { serve } from "@hono/node-server";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { resolve, dirname } from "node:path";
+import {
+  initApp,
+  handleMessage,
+  refreshTokenIfNeeded,
+  BRIEFING_PROMPT,
+  type AppState,
+  type ScoredAccount,
+} from "./core.js";
+
+const PORT = Number(process.env.WEB_PORT ?? 3002);
+const __dir = dirname(fileURLToPath(import.meta.url));
+
+// ─── App State ────────────────────────────────────────────────────────────
+
+let state: AppState | null = null;
+let ready = false;
+let startupError: string | null = null;
+
+// Boot in background so the server starts accepting connections immediately
+(async () => {
+  try {
+    console.log("Starting up — loading accounts and computing signals...");
+    state = await initApp();
+
+    // Run opening briefing and seed history
+    await refreshTokenIfNeeded();
+    const { chat } = await import("../../lib/corti.js");
+    const briefing = await chat({
+      messages: [
+        { role: "system", content: state.systemPrompt },
+        { role: "user", content: BRIEFING_PROMPT },
+      ],
+      temperature: 0.3,
+    });
+    state.history.push(
+      { role: "user", content: "Give me my morning briefing." },
+      { role: "assistant", content: briefing.content }
+    );
+
+    ready = true;
+    console.log(`✓ Ready. ${state.highPriorityCount} accounts flagged. Open http://localhost:${PORT}`);
+  } catch (err) {
+    startupError = err instanceof Error ? err.message : String(err);
+    console.error("Startup failed:", startupError);
+    console.error("Make sure the CRM is running: npm run dev");
+  }
+})();
+
+// ─── Routes ───────────────────────────────────────────────────────────────
+
+const app = new Hono();
+
+app.get("/", (c) => {
+  const html = readFileSync(resolve(__dir, "public/index.html"), "utf8");
+  return c.html(html);
+});
+
+app.get("/api/status", (c) => {
+  if (startupError) return c.json({ ready: false, error: startupError }, 503);
+  if (!ready || !state) return c.json({ ready: false }, 200);
+  return c.json({
+    ready: true,
+    accountCount: state.accountCount,
+    highPriorityCount: state.highPriorityCount,
+  });
+});
+
+app.get("/api/accounts", (c) => {
+  if (!ready || !state) return c.json({ accounts: [] });
+  const top = state.scored.slice(0, 12).map((sa) => ({
+    id: sa.account.id,
+    name: sa.account.name,
+    stage: sa.account.stage,
+    icpTier: sa.account.icpTier ?? null,
+    score: sa.score,
+    topSignal: sa.reasons[0] ?? null,
+    trend: sa.analytics?.trend ?? null,
+    daysToZero: sa.analytics?.projectedDaysToZero ?? null,
+    contractPct: sa.analytics?.contractBalancePct !== null
+      ? Math.round((sa.analytics?.contractBalancePct ?? 0) * 100)
+      : null,
+  }));
+  return c.json({ accounts: top });
+});
+
+app.get("/api/briefing", (c) => {
+  if (!ready || !state) return c.json({ ready: false, briefing: null });
+  const briefingMsg = state.history.find((m) => m.role === "assistant");
+  return c.json({ ready: true, briefing: briefingMsg?.content ?? null });
+});
+
+app.post("/api/chat", async (c) => {
+  if (!ready || !state) return c.json({ error: "Not ready yet" }, 503);
+  const body = await c.req.json<{ message: string }>();
+  if (!body?.message?.trim()) return c.json({ error: "Empty message" }, 400);
+
+  try {
+    const { reply, actionResult } = await handleMessage(
+      body.message,
+      state.scored,
+      state.systemPrompt,
+      state.history
+    );
+    return c.json({ reply, actionResult: actionResult ?? null });
+  } catch (err) {
+    return c.json({ error: err instanceof Error ? err.message : "LLM error" }, 500);
+  }
+});
+
+serve({ fetch: app.fetch, port: PORT });
+console.log(`Web server starting at http://localhost:${PORT} — waiting for data...`);
