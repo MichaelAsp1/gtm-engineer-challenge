@@ -132,4 +132,5 @@ app.post("/api/chat", async (c) => {
 });
 
 serve({ fetch: app.fetch, port: PORT });
-console.log(`Web server starting at http://localhost:${PORT} — waiting for data...`);
+console.log(`Web server starting at http://localhost:${PORT}`);
+console.log("Loading accounts and computing signals — this takes 1-2 minutes...");
