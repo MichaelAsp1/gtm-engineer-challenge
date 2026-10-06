@@ -71,21 +71,36 @@ app.get("/api/status", (c) => {
 });
 
 app.get("/api/accounts", (c) => {
-  if (!ready || !state) return c.json({ accounts: [] });
-  const top = state.scored.slice(0, 12).map((sa) => ({
+  if (!ready || !state) return c.json({ atRisk: [], growing: [] });
+
+  const atRisk = state.scored.slice(0, 12).map((sa) => ({
     id: sa.account.id,
     name: sa.account.name,
     stage: sa.account.stage,
-    icpTier: sa.account.icpTier ?? null,
     score: sa.score,
     topSignal: sa.reasons[0] ?? null,
     trend: sa.analytics?.trend ?? null,
-    daysToZero: sa.analytics?.projectedDaysToZero ?? null,
     contractPct: sa.analytics?.contractBalancePct !== null
       ? Math.round((sa.analytics?.contractBalancePct ?? 0) * 100)
       : null,
   }));
-  return c.json({ accounts: top });
+
+  const growing = state.scored
+    .filter((sa) => sa.analytics?.trend === "growing")
+    .slice(0, 5)
+    .map((sa) => ({
+      id: sa.account.id,
+      name: sa.account.name,
+      stage: sa.account.stage,
+      topSignal: sa.analytics?.transcribeTrend === "growing"
+        ? "API + transcription both growing"
+        : `API requests up vs prior 30d`,
+      contractPct: sa.analytics?.contractBalancePct !== null
+        ? Math.round((sa.analytics?.contractBalancePct ?? 0) * 100)
+        : null,
+    }));
+
+  return c.json({ atRisk, growing });
 });
 
 app.get("/api/briefing", (c) => {

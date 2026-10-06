@@ -257,6 +257,8 @@
     <aside>
       <div class="sidebar-label">At Risk</div>
       <div id="account-list"></div>
+      <div class="sidebar-label" style="margin-top:8px;">Growing</div>
+      <div id="growing-list"></div>
     </aside>
 
     <div id="chat">
@@ -374,19 +376,14 @@
     }
 
     // ── Load sidebar accounts ────────────────────────────────────────────
-    async function loadAccounts() {
-      const res = await fetch('/api/accounts');
-      const { accounts } = await res.json();
-      const list = $('#account-list');
-      list.innerHTML = '';
-      accounts.forEach(acc => {
-        const card = document.createElement('div');
-        card.className = 'account-card';
-        card.title = `Click to ask about ${acc.name}`;
+    function makeCard(acc, variant) {
+      const card = document.createElement('div');
+      card.className = 'account-card';
+      card.title = `Click to ask about ${acc.name}`;
 
+      if (variant === 'risk') {
         const scoreClass = acc.score >= 60 ? 'score-crit' : acc.score >= 40 ? 'score-high' : 'score-med';
         const trendIcon = { growing: '<span style="color:var(--green)">↑</span>', declining: '<span style="color:var(--red)">↓</span>', dark: '<span style="color:var(--text-muted)">●</span>', new: '<span style="color:var(--blue)">★</span>' }[acc.trend] ?? '';
-
         card.innerHTML = `
           <div class="account-row">
             <span class="account-name">${trendIcon ? trendIcon + ' ' : ''}${acc.name}</span>
@@ -395,15 +392,35 @@
           ${acc.topSignal ? `<div class="account-signal">${acc.topSignal}</div>` : ''}
           <div class="account-meta">${acc.stage}${acc.contractPct !== null ? ` · ${acc.contractPct}% balance` : ''}</div>
         `;
+      } else {
+        card.innerHTML = `
+          <div class="account-row">
+            <span class="account-name"><span style="color:var(--green)">↑</span> ${acc.name}</span>
+          </div>
+          ${acc.topSignal ? `<div class="account-signal" style="color:var(--green);opacity:0.7">${acc.topSignal}</div>` : ''}
+          <div class="account-meta">${acc.stage}${acc.contractPct !== null ? ` · ${acc.contractPct}% balance` : ''}</div>
+        `;
+      }
 
-        card.addEventListener('click', () => {
-          input.value = `Tell me about ${acc.name}`;
-          input.dispatchEvent(new Event('input'));
-          input.focus();
-        });
-
-        list.appendChild(card);
+      card.addEventListener('click', () => {
+        input.value = `Tell me about ${acc.name}`;
+        input.dispatchEvent(new Event('input'));
+        input.focus();
       });
+      return card;
+    }
+
+    async function loadAccounts() {
+      const res = await fetch('/api/accounts');
+      const { atRisk, growing } = await res.json();
+
+      const list = $('#account-list');
+      list.innerHTML = '';
+      atRisk.forEach(acc => list.appendChild(makeCard(acc, 'risk')));
+
+      const growingList = $('#growing-list');
+      growingList.innerHTML = '';
+      growing.forEach(acc => growingList.appendChild(makeCard(acc, 'growing')));
     }
 
     // ── Send message ─────────────────────────────────────────────────────
