@@ -614,8 +614,43 @@ export async function run(): Promise<void> {
   const history: ChatMessage[] = [];
 
   console.log(`\n✓ Ready. ${scored.filter((x) => x.score >= 30).length} accounts flagged as high-priority.\n`);
-  console.log("AE Sales Assistant — type your question, or 'exit' to quit.\n");
   console.log("─".repeat(60));
+
+  // Opening briefing — unprompted analysis so the AE doesn't have to ask
+  process.stdout.write("\nAssistant: thinking ");
+  const briefingSpinnerFrames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+  let briefingSpinnerIdx = 0;
+  const briefingSpinner = setInterval(() => {
+    process.stdout.write(`\r\x1b[2KAssistant: thinking ${briefingSpinnerFrames[briefingSpinnerIdx++ % briefingSpinnerFrames.length]}`);
+  }, 80);
+
+  try {
+    await refreshTokenIfNeeded();
+    const briefingResult = await chat({
+      messages: [
+        { role: "system", content: systemPrompt },
+        {
+          role: "user",
+          content:
+            "Give me my morning briefing. No preamble. Lead with the 3-5 accounts that need action today, each with one specific recommended action and the key reason why. Then one line on any expansion opportunity worth a call this week. Be direct and concrete — I have 30 minutes before standup.",
+        },
+      ],
+      temperature: 0.3,
+    });
+    clearInterval(briefingSpinner);
+    process.stdout.write(`\r\x1b[2K`);
+    console.log("Assistant: " + briefingResult.content);
+    history.push(
+      { role: "user", content: "Give me my morning briefing." },
+      { role: "assistant", content: briefingResult.content }
+    );
+  } catch {
+    clearInterval(briefingSpinner);
+    process.stdout.write(`\r\x1b[2K`);
+  }
+
+  console.log("\n" + "─".repeat(60));
+  console.log("Ask a follow-up question, or type 'exit' to quit.\n");
 
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 
