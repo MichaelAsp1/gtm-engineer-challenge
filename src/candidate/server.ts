@@ -100,7 +100,19 @@ app.get("/api/accounts", (c) => {
         : null,
     }));
 
-  return c.json({ atRisk, growing });
+  const all = state.scored.map((sa) => ({
+    id: sa.account.id,
+    name: sa.account.name,
+    stage: sa.account.stage,
+    score: sa.score,
+    trend: sa.analytics?.trend ?? null,
+    topSignal: sa.reasons[0] ?? null,
+    contractPct: sa.analytics?.contractBalancePct !== null
+      ? Math.round((sa.analytics?.contractBalancePct ?? 0) * 100)
+      : null,
+  }));
+
+  return c.json({ atRisk, growing, all });
 });
 
 app.get("/api/briefing", (c) => {

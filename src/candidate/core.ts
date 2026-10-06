@@ -150,20 +150,32 @@ export async function loadAllAccounts(): Promise<Account[]> {
   return accounts;
 }
 
+export interface Task {
+  id: string;
+  accountId: string;
+  title: string;
+  dueDate?: string;
+  createdAt: string;
+  completed?: boolean;
+}
+
 export async function loadAccountDetail(id: string): Promise<{
   contacts: Contact[];
   activities: Activity[];
   opportunities: Opportunity[];
+  tasks: Task[];
 }> {
-  const [contactsData, activitiesData, oppsData] = await Promise.all([
+  const [contactsData, activitiesData, oppsData, tasksData] = await Promise.all([
     crmGet<{ contacts: Contact[] }>(`/accounts/${id}/contacts?limit=10`),
     crmGet<{ activities: Activity[] }>(`/accounts/${id}/activities?limit=10`),
     crmGet<{ opportunities: Opportunity[] }>(`/accounts/${id}/opportunities`),
+    crmGet<{ tasks: Task[] }>(`/accounts/${id}/tasks?limit=10`).catch(() => ({ tasks: [] })),
   ]);
   return {
     contacts: contactsData.contacts,
     activities: activitiesData.activities,
     opportunities: oppsData.opportunities,
+    tasks: tasksData.tasks,
   };
 }
 
@@ -456,7 +468,9 @@ For a task:
 For a note:
 [ACTION:{"type":"note","accountId":"<id>","accountName":"<name>","text":"<note text>"}]
 
-Only include an ACTION block when the AE explicitly asks to create or log something. Use the account id from the data above. If you cannot match an account, do not include the ACTION block and say so.`;
+Only include an ACTION block when the AE explicitly asks to create or log something. Use the account id from the data above. If you cannot match an account, do not include the ACTION block and say so.
+
+CRITICAL: Each action is executed exactly once when you emit it. Never reference, repeat, or mention executing an action from a previous turn. If a prior turn already logged a note or created a task, treat it as done and do not bring it up again.`;
 }
 
 // ─── CRM Write-back ────────────────────────────────────────────────────────
@@ -536,7 +550,10 @@ async function buildUserMessage(question: string, scored: ScoredAccount[]): Prom
     const opps = detail.opportunities
       .map((o) => `${o.name} [${o.stage}] $${o.value?.toLocaleString() ?? "?"} — close ${o.closeDate ?? "?"}`)
       .join(", ");
-    return question + `\n\n[ACCOUNT DETAIL: ${mentionedAccount.account.name} id:${mentionedAccount.account.id}]\nContacts: ${contactSummary || "none found"}\nRecent activities:\n${recentActivities || "none"}\nOpportunities: ${opps || "none"}`;
+    const tasks = detail.tasks
+      .map((t) => `- ${t.title}${t.dueDate ? ` (due ${t.dueDate})` : ""}${t.completed ? " [done]" : ""}`)
+      .join("\n");
+    return question + `\n\n[ACCOUNT DETAIL: ${mentionedAccount.account.name} id:${mentionedAccount.account.id}]\nContacts: ${contactSummary || "none found"}\nRecent activities:\n${recentActivities || "none"}\nOpportunities: ${opps || "none"}\nOpen tasks:\n${tasks || "none"}`;
   } catch {
     return question;
   }

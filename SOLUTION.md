@@ -2,39 +2,66 @@
 
 ## How to run
 
-**Terminal 1 - start the mock CRM:**
+**Step 1 - install dependencies:**
 ```bash
 npm install
-npm run dev
 ```
 
-**Terminal 2 - start the tool:**
+**Step 2 - set up credentials:**
 ```bash
-npm run challenge
+cp .env.example .env.local
 ```
-
-Then type your question. Some examples:
-```
-what needs attention today?
-which accounts are at risk of churning?
-tell me about IronwoodHealth
-which customers are about to run out of contract?
-who should i call first?
-which customers are growing?
-create a task for IronwoodHealth: send expansion proposal by end of week
-add a note to AspenContinuum: called Sarah, renewal confirmed, closing end of March
-```
-
-Type `exit` to quit.
-
-**Environment:** Copy `.env.example` to `.env.local` and fill in:
+Fill in `.env.local`:
 ```
 CORTI_CLIENT_ID=<your client id>
 CORTI_CLIENT_SECRET=<your client secret>
 CORTI_BASE_URL=https://ai.eu.corti.app/v1
 ```
 
-The tool handles OAuth2 token refresh automatically (Keycloak client credentials flow, tokens expire every 5 minutes).
+**Step 3 - start the mock CRM (Terminal 1):**
+```bash
+npm run dev
+```
+
+**Step 4 - start the tool (Terminal 2):**
+
+Web UI (recommended):
+```bash
+npm run web
+```
+Then open: http://localhost:3002
+
+Terminal CLI (alternative):
+```bash
+npm run challenge
+```
+
+---
+
+### What you will see (web UI)
+
+The app takes 1-2 minutes to start. It loads all 200 accounts from the CRM, joins them against the analytics database, computes risk signals for every account, then generates the morning briefing via the LLM. A loading screen tracks progress.
+
+Once ready:
+
+- **Left sidebar** - at-risk accounts ranked by urgency score, with trend arrows and contract balance
+- **Right sidebar** - accounts with growing API and transcription usage
+- **Centre** - morning briefing followed by a streaming chat interface
+- **Header search** - type any account name to filter and jump straight to it
+- **All accounts button** - opens a full panel showing all 200 accounts with a filter input
+
+Example questions to try:
+```
+Tell me about SilverlineCare
+Compare SilverlineCare and SageEndocrinology
+Which customers are about to run out of contract?
+Who should I call first today?
+Which accounts are growing?
+Add a note to FieldstoneUrgent Healthcare: called Ivy Lopez, scheduling discovery call
+Create a task for TrinitySpecialty LLC: reach executive sponsor, due Friday
+```
+
+After creating a task or note, ask about that account again to confirm it was logged.
 
 ---
 
@@ -48,7 +75,7 @@ An AE has 30 minutes before standup and 200 accounts. The bottleneck is not info
 
 Two imperfect systems that need joining:
 
-- **CRM API** - commercial context: stage, owner, opportunity value, close dates, contacts, activities
+- **CRM API** - commercial context: stage, owner, opportunity value, close dates, contacts, activities, tasks
 - **Analytics SQLite** - product reality: API usage volume, contract balances, alerts
 
 The join key is `domain`. CRM accounts have a `.example` TLD (e.g. `hearthpediatrics.example`); analytics customers store the bare domain (`hearthpediatrics`). Stripping the TLD makes the join work. Where no analytics match exists, the account is flagged explicitly rather than silently treated as healthy.
@@ -102,11 +129,15 @@ This grounds the LLM in verified data and prevents hallucination of signals that
 
 ### On-demand account detail
 
-When the AE mentions a specific account by name, its contacts, last 5 activities and opportunities are fetched from the CRM and injected into the user message. The LLM gets full detail for named accounts without bloating the system prompt with 200 full account records.
+When the AE mentions a specific account by name, its contacts, last 5 activities, opportunities, and open tasks are fetched from the CRM and injected into the user message. The LLM gets full detail for named accounts without bloating the system prompt with 200 full account records.
 
 ### CRM write-back
 
-The tool is bidirectional. The AE can create tasks and add notes mid-conversation in plain language. The LLM emits a structured `[ACTION:{...}]` block when it detects write intent; the tool strips it from the displayed response, executes the CRM write, and confirms the result.
+The tool is bidirectional. The AE can create tasks and add notes mid-conversation in plain language. The LLM emits a structured `[ACTION:{...}]` block when it detects write intent; the tool strips it from the displayed response, executes the CRM write, and confirms the result. Created tasks appear the next time you ask about that account.
+
+### Streaming responses
+
+The web UI streams LLM output token by token via Server-Sent Events. The terminal CLI uses a spinner while waiting for the full response.
 
 ### Confidence communication
 
@@ -137,9 +168,9 @@ The system prompt instructs the LLM to state its confidence explicitly:
 
 All signals are pre-computed at startup and injected into the system prompt rather than giving the LLM tools to query data on demand. This is more predictable, faster at query time, and keeps the join logic in code where it can be reasoned about directly. The cost is a larger system prompt (~3K tokens for 15 accounts). Scaling to 500+ accounts would need a retrieval layer.
 
-**Terminal CLI vs. web UI**
+**Web UI and terminal CLI**
 
-A terminal REPL keeps the focus on the data and reasoning logic. The challenge said frontend polish is not evaluated, so time went into signal quality instead.
+Both are available. The web UI adds streaming output, a three-column account overview, full account search, and a panel showing all 200 accounts. The terminal CLI keeps the same underlying logic and is useful for quick testing without a browser.
 
 **Startup load vs. lazy fetch**
 

@@ -33,11 +33,14 @@
     /* ── Header ── */
     header {
       grid-column: 1 / 4;
-      display: flex; align-items: center; gap: 24px;
+      display: flex; align-items: center;
       padding: 0 20px;
       border-bottom: 1px solid var(--border);
       background: var(--surface);
     }
+    .header-left { display: flex; align-items: center; gap: 24px; flex: 1; }
+    .header-center { display: flex; align-items: center; gap: 8px; }
+    .header-right { flex: 1; display: flex; align-items: center; justify-content: flex-end; }
     header h1 { font-size: 13px; font-weight: 600; letter-spacing: 0.02em; color: var(--text); }
     header .sep { color: var(--border-2); }
     .stat { font-size: 12px; color: var(--text-muted); }
@@ -102,6 +105,7 @@
     }
 
     .message { display: flex; flex-direction: column; gap: 8px; max-width: 700px; width: 100%; }
+    .message.user { align-self: flex-end; align-items: flex-end; }
 
     .message-label {
       font-size: 10px; font-weight: 700; letter-spacing: 0.1em;
@@ -149,6 +153,11 @@
     .message-body h2 { font-size: 14px; font-weight: 700; color: var(--text); margin: 1.4em 0 0.5em; letter-spacing: 0.01em; }
     .message-body h3 { font-size: 13px; font-weight: 600; color: var(--text-dim); margin: 1em 0 0.4em; text-transform: uppercase; letter-spacing: 0.06em; }
     .message-body h1:first-child, .message-body h2:first-child, .message-body h3:first-child { margin-top: 0; }
+    .message-body table { border-collapse: collapse; width: 100%; margin-bottom: 0.75em; font-size: 13px; }
+    .message-body th { background: var(--surface-2); padding: 7px 12px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); border-bottom: 1px solid var(--border-2); }
+    .message-body td { padding: 8px 12px; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: top; }
+    .message-body tr:last-child td { border-bottom: none; }
+    .message-body tr:hover td { background: var(--surface-2); }
 
     .action-result {
       font-size: 12px; color: var(--green); margin-top: 6px;
@@ -230,6 +239,117 @@
       animation: spin 0.7s linear infinite;
     }
 
+    /* ── Header search ── */
+    #header-search-wrap {
+      position: relative;
+    }
+    #header-search {
+      background: var(--surface-2); border: 1px solid var(--border-2);
+      border-radius: 4px; padding: 5px 10px 5px 28px;
+      font: inherit; font-size: 12px; color: var(--text);
+      outline: none; width: 200px; transition: border-color 0.15s, width 0.2s;
+    }
+    #header-search:focus { border-color: var(--border-2); width: 260px; }
+    #header-search::placeholder { color: var(--text-muted); }
+    .search-icon {
+      position: absolute; left: 8px; top: 50%; transform: translateY(-50%);
+      color: var(--text-muted); font-size: 11px; pointer-events: none;
+    }
+    #search-dropdown {
+      position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+      background: var(--surface); border: 1px solid var(--border-2);
+      border-radius: 4px; overflow: hidden;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      z-index: 100; display: none;
+      max-height: 280px; overflow-y: auto;
+    }
+    #search-dropdown.open { display: block; }
+    .search-result {
+      padding: 8px 12px; cursor: pointer; display: flex; align-items: center; gap: 10px;
+      border-bottom: 1px solid var(--border); transition: background 0.1s;
+    }
+    .search-result:last-child { border-bottom: none; }
+    .search-result:hover { background: var(--surface-2); }
+    .search-result-name { font-size: 12.5px; font-weight: 500; flex: 1; }
+    .search-result-meta { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); }
+    .search-result-score {
+      font-size: 11px; font-weight: 600; font-family: var(--font-mono);
+      padding: 1px 5px; border-radius: 3px;
+    }
+
+    /* ── All accounts button ── */
+    #btn-all-accounts {
+      background: var(--surface-2); border: 1px solid var(--border-2);
+      color: var(--text-muted); font: inherit; font-size: 11.5px; font-weight: 500;
+      padding: 4px 10px; border-radius: 4px; cursor: pointer;
+      white-space: nowrap; transition: background 0.15s, color 0.15s; flex-shrink: 0;
+    }
+    #btn-all-accounts:hover { background: var(--border-2); color: var(--text); }
+    #btn-all-accounts.active { border-color: var(--blue); color: var(--blue); }
+
+    /* ── All accounts panel ── */
+    #accounts-panel {
+      display: none;
+      border-left: 1px solid var(--border);
+      background: var(--surface);
+      flex-direction: column;
+      width: 380px;
+      overflow: hidden;
+    }
+    #accounts-panel.open { display: flex; }
+
+    /* When panel is open: hide sidebars, show panel */
+    #app.panel-open #sidebar-left,
+    #app.panel-open #sidebar-right { display: none; }
+    #app.panel-open { grid-template-columns: 1fr 380px; }
+    #app.panel-open #accounts-panel { grid-row: 2; grid-column: 2; }
+    #app.panel-open #chat { grid-column: 1; }
+
+    .panel-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .panel-title {
+      font-size: 10px; font-weight: 600; letter-spacing: 0.1em;
+      text-transform: uppercase; color: var(--text-muted);
+    }
+    .panel-close {
+      background: none; border: none; color: var(--text-muted); cursor: pointer;
+      font-size: 16px; line-height: 1; padding: 2px 4px;
+      transition: color 0.1s;
+    }
+    .panel-close:hover { color: var(--text); }
+
+    .panel-filter {
+      padding: 10px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+    }
+    #panel-search {
+      width: 100%; background: var(--surface-2); border: 1px solid var(--border-2);
+      border-radius: 3px; padding: 6px 10px; font: inherit; font-size: 12px;
+      color: var(--text); outline: none;
+    }
+    #panel-search::placeholder { color: var(--text-muted); }
+
+    #accounts-list-all {
+      flex: 1; overflow-y: auto;
+    }
+    .all-account-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 16px; border-bottom: 1px solid var(--border);
+      cursor: pointer; transition: background 0.1s;
+    }
+    .all-account-row:hover { background: var(--surface-2); }
+    .all-account-row:last-child { border-bottom: none; }
+    .all-acc-trend { width: 12px; text-align: center; flex-shrink: 0; font-size: 11px; }
+    .all-acc-name { flex: 1; font-size: 12.5px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .all-acc-stage { font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); flex-shrink: 0; }
+    .all-acc-score {
+      font-size: 11px; font-weight: 600; font-family: var(--font-mono);
+      padding: 1px 5px; border-radius: 3px; flex-shrink: 0;
+    }
+
     /* ── Scrollbar ── */
     ::-webkit-scrollbar { width: 4px; }
     ::-webkit-scrollbar-track { background: transparent; }
@@ -245,14 +365,25 @@
 
   <div id="app">
     <header>
-      <h1>Sales Intelligence</h1>
-      <span class="sep">·</span>
-      <span class="stat"><strong id="stat-accounts">—</strong> accounts</span>
-      <span class="sep">·</span>
-      <span class="stat"><strong id="stat-flagged">—</strong> flagged</span>
-      <span class="sep">·</span>
-      <span class="stat">Ref: Mar 14, 2025</span>
-      <div id="status-dot"></div>
+      <div class="header-left">
+        <h1>Sales Intelligence</h1>
+        <span class="sep">·</span>
+        <span class="stat"><strong id="stat-accounts">—</strong> accounts</span>
+        <span class="sep">·</span>
+        <span class="stat"><strong id="stat-flagged">—</strong> flagged</span>
+      </div>
+      <div class="header-center">
+        <div id="header-search-wrap">
+          <span class="search-icon">⌕</span>
+          <input id="header-search" type="text" placeholder="Search accounts..." autocomplete="off" />
+          <div id="search-dropdown"></div>
+        </div>
+        <button id="btn-all-accounts">All accounts</button>
+      </div>
+      <div class="header-right">
+        <div id="status-dot" style="margin-right: 10px;"></div>
+        <span class="stat">Ref: Mar 14, 2025</span>
+      </div>
     </header>
 
     <aside id="sidebar-left">
@@ -279,6 +410,17 @@
       <div class="sidebar-label">Growing</div>
       <div id="growing-list"></div>
     </aside>
+
+    <div id="accounts-panel">
+      <div class="panel-header">
+        <span class="panel-title">All Accounts</span>
+        <button class="panel-close" id="btn-close-panel">✕</button>
+      </div>
+      <div class="panel-filter">
+        <input id="panel-search" type="text" placeholder="Filter accounts..." autocomplete="off" />
+      </div>
+      <div id="accounts-list-all"></div>
+    </div>
   </div>
 
   <script>
@@ -379,6 +521,106 @@
       }
     }
 
+    // ── Account data store ───────────────────────────────────────────────
+    let allAccounts = [];
+
+    const trendIcon = (trend) => ({
+      growing:  '<span style="color:var(--green)">↑</span>',
+      declining:'<span style="color:var(--red)">↓</span>',
+      stable:   '<span style="color:var(--text-muted)">→</span>',
+      dark:     '<span style="color:var(--text-muted)">●</span>',
+      new:      '<span style="color:var(--blue)">★</span>',
+    })[trend] ?? '<span style="color:var(--border-2)">·</span>';
+
+    const scoreClass = (s) => s >= 60 ? 'score-crit' : s >= 40 ? 'score-high' : 'score-med';
+
+    // ── Header search ────────────────────────────────────────────────────
+    const headerSearch = $('#header-search');
+    const searchDropdown = $('#search-dropdown');
+
+    headerSearch.addEventListener('input', () => {
+      const q = headerSearch.value.trim().toLowerCase();
+      if (!q || allAccounts.length === 0) { searchDropdown.classList.remove('open'); return; }
+      const matches = allAccounts.filter(a => a.name.toLowerCase().includes(q)).slice(0, 8);
+      if (!matches.length) { searchDropdown.classList.remove('open'); return; }
+      searchDropdown.innerHTML = matches.map(a => `
+        <div class="search-result" data-name="${a.name}">
+          <span class="all-acc-trend">${trendIcon(a.trend)}</span>
+          <span class="search-result-name">${a.name}</span>
+          <span class="search-result-meta">${a.stage}</span>
+          ${a.score > 0 ? `<span class="search-result-score ${scoreClass(a.score)}">${a.score}</span>` : ''}
+        </div>`).join('');
+      searchDropdown.classList.add('open');
+      searchDropdown.querySelectorAll('.search-result').forEach(el => {
+        el.addEventListener('click', () => {
+          input.value = `Tell me about ${el.dataset.name}`;
+          input.dispatchEvent(new Event('input'));
+          headerSearch.value = '';
+          searchDropdown.classList.remove('open');
+          input.focus();
+        });
+      });
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!$('#header-search-wrap').contains(e.target)) searchDropdown.classList.remove('open');
+    });
+
+    headerSearch.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { headerSearch.value = ''; searchDropdown.classList.remove('open'); }
+    });
+
+    // ── All accounts panel ───────────────────────────────────────────────
+    const app = $('#app');
+    const accountsPanel = $('#accounts-panel');
+    const btnAll = $('#btn-all-accounts');
+    const btnClose = $('#btn-close-panel');
+    const panelSearch = $('#panel-search');
+    const accountsListAll = $('#accounts-list-all');
+
+    function renderPanelList(accounts) {
+      accountsListAll.innerHTML = accounts.map(a => `
+        <div class="all-account-row" data-name="${a.name}">
+          <span class="all-acc-trend">${trendIcon(a.trend)}</span>
+          <span class="all-acc-name">${a.name}</span>
+          <span class="all-acc-stage">${a.stage}</span>
+          ${a.score > 0 ? `<span class="all-acc-score ${scoreClass(a.score)}">${a.score}</span>` : ''}
+        </div>`).join('');
+      accountsListAll.querySelectorAll('.all-account-row').forEach(el => {
+        el.addEventListener('click', () => {
+          input.value = `Tell me about ${el.dataset.name}`;
+          input.dispatchEvent(new Event('input'));
+          closePanel();
+          input.focus();
+        });
+      });
+    }
+
+    function openPanel() {
+      app.classList.add('panel-open');
+      accountsPanel.classList.add('open');
+      btnAll.classList.add('active');
+      renderPanelList(allAccounts);
+      panelSearch.focus();
+    }
+
+    function closePanel() {
+      app.classList.remove('panel-open');
+      accountsPanel.classList.remove('open');
+      btnAll.classList.remove('active');
+      panelSearch.value = '';
+    }
+
+    btnAll.addEventListener('click', () => {
+      app.classList.contains('panel-open') ? closePanel() : openPanel();
+    });
+    btnClose.addEventListener('click', closePanel);
+
+    panelSearch.addEventListener('input', () => {
+      const q = panelSearch.value.trim().toLowerCase();
+      renderPanelList(q ? allAccounts.filter(a => a.name.toLowerCase().includes(q)) : allAccounts);
+    });
+
     // ── Load sidebar accounts ────────────────────────────────────────────
     function makeCard(acc, variant) {
       const card = document.createElement('div');
@@ -386,12 +628,11 @@
       card.title = `Click to ask about ${acc.name}`;
 
       if (variant === 'risk') {
-        const scoreClass = acc.score >= 60 ? 'score-crit' : acc.score >= 40 ? 'score-high' : 'score-med';
-        const trendIcon = { growing: '<span style="color:var(--green)">↑</span>', declining: '<span style="color:var(--red)">↓</span>', dark: '<span style="color:var(--text-muted)">●</span>', new: '<span style="color:var(--blue)">★</span>' }[acc.trend] ?? '';
+        const icon = trendIcon(acc.trend);
         card.innerHTML = `
           <div class="account-row">
-            <span class="account-name">${trendIcon ? trendIcon + ' ' : ''}${acc.name}</span>
-            <span class="account-score ${scoreClass}">${acc.score}</span>
+            <span class="account-name">${icon ? icon + ' ' : ''}${acc.name}</span>
+            <span class="account-score ${scoreClass(acc.score)}">${acc.score}</span>
           </div>
           ${acc.topSignal ? `<div class="account-signal">${acc.topSignal}</div>` : ''}
           <div class="account-meta">${acc.stage}${acc.contractPct !== null ? ` · ${acc.contractPct}% balance` : ''}</div>
@@ -416,7 +657,9 @@
 
     async function loadAccounts() {
       const res = await fetch('/api/accounts');
-      const { atRisk, growing } = await res.json();
+      const { atRisk, growing, all } = await res.json();
+
+      allAccounts = all ?? [];
 
       const list = $('#account-list');
       list.innerHTML = '';
